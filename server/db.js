@@ -1,7 +1,7 @@
 const { Pool } = require('pg');
 require('dotenv').config();
 
-const pool = process.env.DATABASE_URL ? new Pool({
+const dbPool = process.env.DATABASE_URL ? new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false } // Required for Supabase / Render
 }) : new Pool({
@@ -15,7 +15,7 @@ const pool = process.env.DATABASE_URL ? new Pool({
 // Test connection and create table
 (async () => {
   try {
-    const client = await pool.connect();
+    const client = await dbPool.connect();
     console.log('✅ Connected to PostgreSQL database');
     
     const createTableQuery = `
@@ -34,4 +34,4 @@ const pool = process.env.DATABASE_URL ? new Pool({
   }
 })();
 
-module.exports = pool;
+module.exports = dbPool;
