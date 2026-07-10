@@ -44,29 +44,12 @@ const fileFilter = (req, file, cb) => {
 
 const upload = multer({ storage: storage, fileFilter: fileFilter });
 
-// Create models table if not exists
-const createTableQuery = `
-  CREATE TABLE IF NOT EXISTS models (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    filename VARCHAR(255) NOT NULL,
-    uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-  )
-`;
 
-(async () => {
-  try {
-    await db.query(createTableQuery);
-    console.log("✅ Models table ready");
-  } catch (err) {
-    console.error("❌ Error creating table:", err);
-  }
-})();
 
 // GET /models - Get all models
 app.get("/models", async (req, res) => {
   try {
-    const [rows] = await db.query("SELECT id, name, filename, uploaded_at FROM models ORDER BY uploaded_at DESC");
+    const { rows } = await db.query("SELECT id, name, filename, uploaded_at FROM models ORDER BY uploaded_at DESC");
     res.json(rows);
   } catch (err) {
     console.error("Error fetching models:", err);
@@ -77,7 +60,7 @@ app.get("/models", async (req, res) => {
 // GET /models/:id - Get a single model by ID
 app.get("/models/:id", async (req, res) => {
   try {
-    const [rows] = await db.query("SELECT id, name, filename, uploaded_at FROM models WHERE id = ?", [req.params.id]);
+    const { rows } = await db.query("SELECT id, name, filename, uploaded_at FROM models WHERE id = $1", [req.params.id]);
     if (rows.length === 0) {
       return res.status(404).json({ error: "Model not found" });
     }
@@ -100,10 +83,10 @@ app.post("/upload", upload.single("model"), async (req, res) => {
     }
     const filename = req.file.filename;
     const result = await db.query(
-      "INSERT INTO models (name, filename) VALUES (?, ?)",
+      "INSERT INTO models (name, filename) VALUES ($1, $2) RETURNING id",
       [name, filename]
     );
-    const modelId = result[0].insertId;
+    const modelId = result.rows[0].id;
     res.status(201).json({ id: modelId, name, filename, uploaded_at: new Date() });
   } catch (err) {
     console.error("Error uploading model:", err);
@@ -115,7 +98,7 @@ app.post("/upload", upload.single("model"), async (req, res) => {
 app.delete("/models/:id", async (req, res) => {
   try {
     const id = req.params.id;
-    const [rows] = await db.query("SELECT filename FROM models WHERE id = ?", [id]);
+    const { rows } = await db.query("SELECT filename FROM models WHERE id = $1", [id]);
     if (rows.length === 0) {
       return res.status(404).json({ error: "Model not found" });
     }
@@ -124,7 +107,7 @@ app.delete("/models/:id", async (req, res) => {
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
     }
-    await db.query("DELETE FROM models WHERE id = ?", [id]);
+    await db.query("DELETE FROM models WHERE id = $1", [id]);
     res.json({ message: "Model deleted successfully" });
   } catch (err) {
     console.error("Error deleting model:", err);
@@ -138,7 +121,7 @@ app.put("/models/:id", upload.single("model"), async (req, res) => {
     const id = req.params.id;
     const { name } = req.body;
 
-    const [rows] = await db.query("SELECT * FROM models WHERE id = ?", [id]);
+    const { rows } = await db.query("SELECT * FROM models WHERE id = $1", [id]);
     if (rows.length === 0) {
       return res.status(404).json({ error: "Model not found" });
     }
@@ -155,7 +138,7 @@ app.put("/models/:id", upload.single("model"), async (req, res) => {
     }
 
     const updatedName = name || rows[0].name;
-    await db.query("UPDATE models SET name = ?, filename = ? WHERE id = ?", [updatedName, filename, id]);
+    await db.query("UPDATE models SET name = $1, filename = $2 WHERE id = $3", [updatedName, filename, id]);
     res.json({ id, name: updatedName, filename });
   } catch (err) {
     console.error("Error updating model:", err);
