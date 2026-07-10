@@ -63,7 +63,7 @@ function Viewer() {
   const cameraCtrl = useRef(null);
   const navigate = useNavigate();
 
-  const apiUrl = import.meta.env.VITE_API_URL;
+  const apiUrl = import.meta.env.VITE_API_URL || "https://3d-model-viewer-production-b436.up.railway.app";
 
   useEffect(() => {
     const fetchModel = async () => {
