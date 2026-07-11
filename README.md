@@ -1,11 +1,11 @@
 # 3D Model Viewer
 
-A modern, responsive web application for uploading, managing, and viewing interactive 3D models in GLB format. Built with React (Vite), Three.js, Express, and MySQL.
+A modern, responsive web application for uploading, managing, and viewing interactive 3D models in GLB format. Built with React (Vite), Three.js, Express, and PostgreSQL.
 
 ## Features
 
-- **Interactive 3D Viewer:** Full-screen viewer for GLB models with orbit controls (rotate, zoom, pan) and custom control buttons.
-- **Admin Dashboard:** Secure interface to upload new GLB models and manage existing ones.
+- **Interactive 3D Viewer:** Full-screen viewer for GLB models with orbit controls (rotate, zoom, pan), custom control buttons, and a **Download** option.
+- **Admin Dashboard:** Secure, JWT-authenticated interface to upload new GLB models and manage existing ones.
 - **Model Management:** Edit model names, replace files, and delete models with a seamless UI.
 - **Live Previews:** The home page features a grid of uploaded models, each displaying a live, auto-rotating 3D thumbnail.
 - **Responsive Design:** Polished UI that works perfectly on desktop, tablet, and mobile devices.
@@ -23,30 +23,29 @@ A modern, responsive web application for uploading, managing, and viewing intera
 ### Backend (Server)
 - **Runtime:** Node.js
 - **Framework:** Express.js
-- **Database:** MySQL (using `mysql2/promise`)
-- **File Uploads:** Multer
+- **Database:** PostgreSQL (using `pg`)
+- **Authentication:** JSON Web Tokens (`jsonwebtoken`)
+- **File Uploads:** Multer (Temporary local storage before DB insert)
 
 ## Prerequisites
 
 Before you begin, ensure you have the following installed:
 - [Node.js](https://nodejs.org/) (v16 or higher)
-- [MySQL Server](https://dev.mysql.com/downloads/mysql/)
+- A running PostgreSQL Database instance (e.g. Supabase, Render, or local PostgreSQL)
 
 ## Installation & Setup
 
 ### 1. Database Setup
-1. Open your MySQL client and create a new database:
-   ```sql
-   CREATE DATABASE 3d_models_db;
-   ```
-2. You can create a `.env` file in the `server` directory (or modify `server/db.js` directly) to configure your database credentials:
+1. Open your PostgreSQL client and create a new database.
+2. Create a `.env` file in the `server` directory to configure your database connection and admin credentials:
    ```env
-   DB_HOST=localhost
-   DB_USER=root
-   DB_PASSWORD=your_password
-   DB_NAME=3d_models_db
+   DATABASE_URL=postgresql://user:password@localhost:5432/3d_models_db
+   
+   ADMIN_USERNAME=admin
+   ADMIN_PASSWORD=admin
+   JWT_SECRET=your-secure-secret-key
    ```
-   *(Note: The server will automatically create the `models` table on startup if it doesn't exist).*
+   *(Note: The server will automatically create the `models` table with a `file_data` column on startup if it doesn't exist).*
 
 ### 2. Server Setup
 1. Navigate to the server directory:
@@ -85,9 +84,11 @@ Before you begin, ensure you have the following installed:
 ## Usage
 
 1. **Home Page (`/`)**: View a grid of all available models with live 3D previews. Click "View" to open the interactive viewer.
-2. **Viewer Page (`/viewer/:id`)**: Interact with the model using your mouse (drag to rotate, right-click to pan, scroll to zoom) or use the on-screen buttons.
+2. **Viewer Page (`/viewer/:id`)**: Interact with the model using your mouse (drag to rotate, right-click to pan, scroll to zoom), download the model, or use the on-screen buttons.
 3. **Admin Page (`/admin`)**: 
+   - **Login** using your `ADMIN_USERNAME` and `ADMIN_PASSWORD` (default is `admin` / `admin`).
    - Upload new `.glb` files.
+   - Click "View" to jump straight into the 3D viewer.
    - Click "Edit" on an existing model to change its name or replace the file via a popup modal.
    - Click "Delete" to remove a model completely.
 
@@ -98,8 +99,8 @@ Before you begin, ensure you have the following installed:
 ├── client/                 # React Frontend
 │   ├── public/
 │   ├── src/
-│   │   ├── components/     # Navbar, ModelThumbnail, ErrorBoundary
-│   │   ├── pages/          # Home, Admin, Viewer
+│   │   ├── components/     # Navbar, ModelThumbnail, AdminLogin, ErrorBoundary
+│   │   ├── pages/          # Home, Admin, Viewer, ViewerLanding
 │   │   ├── App.jsx         # Routes
 │   │   ├── main.jsx        # Entry point
 │   │   └── styles.css      # Custom UI styles
@@ -107,8 +108,8 @@ Before you begin, ensure you have the following installed:
 │   └── package.json
 │
 ├── server/                 # Express Backend
-│   ├── uploads/            # Directory where GLB files are stored
-│   ├── db.js               # Database connection
+│   ├── uploads/            # Temporary directory (files are deleted after DB insert)
+│   ├── db.js               # PostgreSQL connection & setup
 │   ├── index.js            # Main server logic & API routes
 │   └── package.json
 │
