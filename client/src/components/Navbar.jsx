@@ -18,9 +18,6 @@ function Navbar() {
   const handleLogout = () => {
     localStorage.removeItem("adminToken");
     window.dispatchEvent(new Event("authStateChanged"));
-    if (location.pathname.startsWith("/admin")) {
-      window.location.reload();
-    }
   };
 
   const isActive = (path) => {

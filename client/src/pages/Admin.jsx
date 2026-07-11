@@ -5,6 +5,16 @@ import AdminLogin from "../components/AdminLogin";
 
 function Admin() {
   const [token, setToken] = useState(() => localStorage.getItem("adminToken"));
+
+  useEffect(() => {
+    const handleAuthChange = () => setToken(localStorage.getItem("adminToken"));
+    window.addEventListener("authStateChanged", handleAuthChange);
+    window.addEventListener("storage", handleAuthChange);
+    return () => {
+      window.removeEventListener("authStateChanged", handleAuthChange);
+      window.removeEventListener("storage", handleAuthChange);
+    };
+  }, []);
   const [name, setName] = useState("");
   const [file, setFile] = useState(null);
   const [status, setStatus] = useState(null);
