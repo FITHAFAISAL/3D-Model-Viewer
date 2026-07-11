@@ -18,7 +18,28 @@ if (!fs.existsSync(uploadDir)) {
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use("/uploads", express.static(uploadDir));
+// Serve files from the database
+app.get("/uploads/:filename", async (req, res) => {
+  try {
+    const { filename } = req.params;
+    const { rows } = await db.query("SELECT file_data FROM models WHERE filename = $1", [filename]);
+    
+    if (rows.length === 0 || !rows[0].file_data) {
+      // Fallback to local filesystem if the file_data is not in the database
+      const filePath = path.join(uploadDir, filename);
+      if (fs.existsSync(filePath)) {
+        return res.sendFile(filePath);
+      }
+      return res.status(404).json({ error: "File not found" });
+    }
+    
+    res.setHeader("Content-Type", "model/gltf-binary");
+    res.send(rows[0].file_data);
+  } catch (err) {
+    console.error("Error serving file:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
 
 // Configure multer for file upload
 const storage = multer.diskStorage({
@@ -82,10 +103,19 @@ app.post("/upload", upload.single("model"), async (req, res) => {
       return res.status(400).json({ error: "No file uploaded" });
     }
     const filename = req.file.filename;
+    const filePath = req.file.path;
+    const fileBuffer = await fs.promises.readFile(filePath);
+
     const result = await db.query(
-      "INSERT INTO models (name, filename) VALUES ($1, $2) RETURNING id",
-      [name, filename]
+      "INSERT INTO models (name, filename, file_data) VALUES ($1, $2, $3) RETURNING id",
+      [name, filename, fileBuffer]
     );
+
+    // Clean up temporary file
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+
     const modelId = result.rows[0].id;
     res.status(201).json({ id: modelId, name, filename, uploaded_at: new Date() });
   } catch (err) {
@@ -128,17 +158,26 @@ app.put("/models/:id", upload.single("model"), async (req, res) => {
 
     let filename = rows[0].filename;
 
-    // If a new file was uploaded, delete the old one and use the new filename
+    const updatedName = name || rows[0].name;
+    let updateQuery = "UPDATE models SET name = $1, filename = $2 WHERE id = $3";
+    let queryParams = [updatedName, filename, id];
+
+    // If a new file was uploaded, read buffer and use the new filename
     if (req.file) {
-      const oldPath = path.join(uploadDir, filename);
-      if (fs.existsSync(oldPath)) {
-        fs.unlinkSync(oldPath);
-      }
       filename = req.file.filename;
+      const filePath = req.file.path;
+      const fileBuffer = await fs.promises.readFile(filePath);
+      
+      updateQuery = "UPDATE models SET name = $1, filename = $2, file_data = $4 WHERE id = $3";
+      queryParams = [updatedName, filename, id, fileBuffer];
+      
+      // Clean up temporary file
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
     }
 
-    const updatedName = name || rows[0].name;
-    await db.query("UPDATE models SET name = $1, filename = $2 WHERE id = $3", [updatedName, filename, id]);
+    await db.query(updateQuery, queryParams);
     res.json({ id, name: updatedName, filename });
   } catch (err) {
     console.error("Error updating model:", err);

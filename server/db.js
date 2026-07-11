@@ -23,10 +23,18 @@ const dbPool = process.env.DATABASE_URL ? new Pool({
         id SERIAL PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
         filename VARCHAR(255) NOT NULL,
+        file_data BYTEA,
         uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `;
     await client.query(createTableQuery);
+
+    // Add file_data column if it doesn't exist (for existing databases)
+    await client.query(`
+      ALTER TABLE models 
+      ADD COLUMN IF NOT EXISTS file_data BYTEA
+    `);
+
     console.log('✅ Models table ready');
     client.release();
   } catch (err) {
