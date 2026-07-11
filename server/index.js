@@ -6,7 +6,7 @@ const db = require("./db"); // This is now a mysql2/promise pool
 const path = require("path");
 const multer = require("multer");
 const fs = require("fs");
-
+const jwt = require("jsonwebtoken");
 const app = express();
 
 // Ensure uploads directory exists
@@ -65,6 +65,33 @@ const fileFilter = (req, file, cb) => {
 
 const upload = multer({ storage: storage, fileFilter: fileFilter });
 
+// Authentication Middleware
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  
+  if (!token) return res.status(401).json({ error: "Access denied. No token provided." });
+
+  jwt.verify(token, process.env.JWT_SECRET || 'super-secret-jwt-key-3d-model-viewer', (err, user) => {
+    if (err) return res.status(403).json({ error: "Invalid token." });
+    req.user = user;
+    next();
+  });
+};
+
+// POST /login - Admin Login
+app.post("/login", (req, res) => {
+  const { username, password } = req.body;
+  const adminUsername = process.env.ADMIN_USERNAME || "admin";
+  const adminPassword = process.env.ADMIN_PASSWORD || "admin";
+
+  if (username === adminUsername && password === adminPassword) {
+    const token = jwt.sign({ username }, process.env.JWT_SECRET || 'super-secret-jwt-key-3d-model-viewer', { expiresIn: "1d" });
+    res.json({ token });
+  } else {
+    res.status(401).json({ error: "Invalid username or password" });
+  }
+});
 
 
 // GET /models - Get all models
@@ -93,7 +120,7 @@ app.get("/models/:id", async (req, res) => {
 });
 
 // POST /upload - Upload a new model
-app.post("/upload", upload.single("model"), async (req, res) => {
+app.post("/upload", authenticateToken, upload.single("model"), async (req, res) => {
   try {
     const { name } = req.body;
     if (!name) {
@@ -125,7 +152,7 @@ app.post("/upload", upload.single("model"), async (req, res) => {
 });
 
 // DELETE /models/:id - Delete a model
-app.delete("/models/:id", async (req, res) => {
+app.delete("/models/:id", authenticateToken, async (req, res) => {
   try {
     const id = req.params.id;
     const { rows } = await db.query("SELECT filename FROM models WHERE id = $1", [id]);
@@ -146,7 +173,7 @@ app.delete("/models/:id", async (req, res) => {
 });
 
 // PUT /models/:id - Update model name and optionally replace file
-app.put("/models/:id", upload.single("model"), async (req, res) => {
+app.put("/models/:id", authenticateToken, upload.single("model"), async (req, res) => {
   try {
     const id = req.params.id;
     const { name } = req.body;

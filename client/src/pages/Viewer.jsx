@@ -86,6 +86,24 @@ function Viewer() {
   const handleZoomOut = useCallback(() => cameraCtrl.current?.zoomOut(), []);
   const handleReset = useCallback(() => cameraCtrl.current?.reset(), []);
 
+  const handleDownload = async () => {
+    try {
+      const response = await fetch(`${apiUrl}/uploads/${model.filename}`);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = model.filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Download failed", err);
+      alert("Failed to download model.");
+    }
+  };
+
   if (loading) {
     return (
       <div className="viewer-wrapper">
@@ -120,9 +138,16 @@ function Viewer() {
   return (
     <div className="viewer-wrapper">
       {/* Floating back button + model name */}
-      <div className="viewer-top-bar">
+      <div className="viewer-top-bar" style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
         <button className="viewer-back-btn" onClick={() => navigate("/")} title="Back to Home">← Back</button>
-        <div className="viewer-model-label">{model.name}</div>
+        <div className="viewer-model-label" style={{ flexGrow: 1 }}>{model.name}</div>
+        <button 
+          className="btn btn-green" 
+          onClick={handleDownload} 
+          style={{ padding: "0.4rem 1rem", fontSize: "0.9rem", boxShadow: "0 2px 5px rgba(0,0,0,0.2)" }}
+        >
+          Download
+        </button>
       </div>
 
       {/* Right-side control buttons */}

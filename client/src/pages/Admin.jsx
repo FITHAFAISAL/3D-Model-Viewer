@@ -1,7 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
 import axios from "axios";
+import { Link } from "react-router-dom";
+import AdminLogin from "../components/AdminLogin";
 
 function Admin() {
+  const [token, setToken] = useState(() => localStorage.getItem("adminToken"));
   const [name, setName] = useState("");
   const [file, setFile] = useState(null);
   const [status, setStatus] = useState(null);
@@ -47,7 +50,9 @@ function Admin() {
     formData.append("model", file);
 
     try {
-      await axios.post(`${apiUrl}/upload`, formData);
+      await axios.post(`${apiUrl}/upload`, formData, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       setStatus({ type: "success", message: "Model uploaded successfully!" });
       setName("");
       setFile(null);
@@ -93,7 +98,9 @@ function Admin() {
     if (editFile) formData.append("model", editFile);
 
     try {
-      await axios.put(`${apiUrl}/models/${editModal.id}`, formData);
+      await axios.put(`${apiUrl}/models/${editModal.id}`, formData, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       setEditStatus({ type: "success", message: "Updated!" });
       fetchModels();
       setTimeout(closeEditModal, 800);
@@ -112,7 +119,9 @@ function Admin() {
     if (!window.confirm(`Delete "${modelName}"? This cannot be undone.`)) return;
     setDeleting(id);
     try {
-      await axios.delete(`${apiUrl}/models/${id}`);
+      await axios.delete(`${apiUrl}/models/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       setStatus({ type: "success", message: `"${modelName}" deleted.` });
       fetchModels();
     } catch (err) {
@@ -122,9 +131,14 @@ function Admin() {
     }
   };
 
+  if (!token) {
+    return <AdminLogin onLogin={setToken} />;
+  }
+
   return (
     <div className="container">
-      <div className="admin-wrapper">
+      <div className="admin-wrapper" style={{ paddingTop: "2.5rem" }}>
+        
         <h1 className="page-title">Upload 3D Model</h1>
 
         <div className="admin-card">
@@ -196,6 +210,13 @@ function Admin() {
                       </span>
                     </div>
                     <div className="model-list__actions">
+                      <Link
+                        to={`/viewer/${m.id}`}
+                        className="btn btn-green btn-sm"
+                        style={{ padding: "0.25rem 0.5rem" }}
+                      >
+                        View
+                      </Link>
                       <button
                         className="btn btn-edit btn-sm"
                         onClick={() => openEditModal(m)}
