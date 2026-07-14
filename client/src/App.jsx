@@ -3,7 +3,6 @@ import Navbar from "./components/Navbar";
 import Home from "./pages/Home";
 import Admin from "./pages/Admin";
 import Viewer from "./pages/Viewer";
-import ViewerLanding from "./pages/ViewerLanding";
 
 function App() {
   return (
@@ -13,7 +12,6 @@ function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/admin" element={<Admin />} />
-        <Route path="/viewer" element={<ViewerLanding />} />
         <Route path="/viewer/:id" element={<Viewer />} />
       </Routes>
     </BrowserRouter>
